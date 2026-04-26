@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard | Ruido Ambiental</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Estilos generales */
+        body { 
+            font-family: 'Poppins', sans-serif; 
+            margin: 0; 
+            background-color: #f0f2f5; /* Fondo gris muy claro */
+            color: #333;
+        }
+
+        /* La barra superior negra con línea verde */
+        .navbar {
+            background-color: #111; /* Negro profundo */
+            color: white;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 5px solid #2ecc71; /* Acento verde brillante */
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .navbar h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: 1px;
+        }
+        
+        .badge {
+            background-color: #2ecc71;
+            color: #111;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        /* Contenedor principal para centrar el contenido */
+        .contenedor-principal {
+            max-width: 1400px;
+            margin: 40px auto;
+            padding: 0 20px;
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+
+        /* Estilo de tarjeta blanca para los módulos */
+        .tarjeta {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+            flex: 1;
+            min-width: 400px;
+            border-top: 4px solid #111; /* Detalle negro arriba */
+        }
+
+        .tarjeta h2 {
+            margin-top: 0;
+            font-size: 18px;
+            color: #555;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        /* Ajustes específicos del mapa y gráfica */
+        #mapa_mexico { 
+            height: 550px; 
+            border-radius: 10px; 
+            z-index: 1; /* Evita que se sobreponga a otros elementos */
+        }
+        
+        canvas { 
+            max-height: 450px; 
+        }
+
+        /* Personalización de los popups del mapa */
+        .leaflet-popup-content-wrapper {
+            border-radius: 8px;
+            box-shadow: 0 3px 14px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <header class="navbar">
+        <h1>SISTEMA DE MONITOREO <span style="color: #2ecc71;">AMBIENTAL</span></h1>
+    </header>
+    
+    <main class="contenedor-principal">
+        
+        <div class="tarjeta">
+            <h2>Ubicación de Sensores</h2>
+            <div id="mapa_mexico"></div>
+        </div>
+        
+        <div class="tarjeta">
+            <h2 id="titulo-grafica">Datos del Sensor: Selecciona un punto</h2>
+            <canvas id="graficaRuido"></canvas>
+        </div>
+
+    </main>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Inicializamos el mapa centrado en México
+        var mapa = L.map('mapa_mexico').setView([23.6345, -102.5528], 5);
+        
+        // Usamos un mapa en tonos claros para que resalten los pines y contraste con el diseño
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { 
+            attribution: '© OpenStreetMap, © CartoDB' 
+        }).addTo(mapa);
+
+        var marcadores = {};
+        var miGrafica = null; 
+        var idSensorActivo = null; 
+        var nombreSensorActivo = null;
+
+        function cargarGrafica(sensor_id, sensor_nombre) {
+            idSensorActivo = sensor_id;
+            nombreSensorActivo = sensor_nombre;
+            document.getElementById('titulo-grafica').innerHTML = `Historial: <b>${sensor_nombre}</b>`;
+            
+            fetch('/api/sensores/' + sensor_id + '/historial/')
+                .then(respuesta => respuesta.json())
+                .then(datos => {
+                    var ctx = document.getElementById('graficaRuido').getContext('2d');
+                    
+                    if (miGrafica) { 
+                        miGrafica.data.labels = datos.etiquetas;
+                        miGrafica.data.datasets[0].data = datos.niveles;
+                        miGrafica.update();
+                    } else {
+                        miGrafica = new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels: datos.etiquetas,
+                                datasets: [{
+                                    label: 'Nivel de Ruido (dB)',
+                                    data: datos.niveles,
+                                    borderColor: '#2ecc71', // Verde
+                                    backgroundColor: 'rgba(46, 204, 113, 0.2)', // Verde transparente para el relleno
+                                    pointBackgroundColor: '#111', // Puntos negros
+                                    borderWidth: 3, 
+                                    fill: true, 
+                                    tension: 0.4 // Curvas más suaves
+                                }]
+                            },
+                            options: { 
+                                responsive: true, 
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: { position: 'bottom' }
+                                },
+                                scales: { 
+                                    y: { 
+                                        beginAtZero: false, 
+                                        suggestedMin: 30, 
+                                        suggestedMax: 100,
+                                        grid: { color: '#eee' }
+                                    },
+                                    x: { grid: { display: false } }
+                                } 
+                            }
+                        });
+                    }
+                });
+        }
+
+        function actualizarMapa() {
+            fetch('/api/sensores/')
+                .then(respuesta => respuesta.json())
+                .then(datos => {
+                    datos.forEach(sensor => {
+                        // Cambiamos el color del texto a rojo si el ruido pasa de 80dB
+                        var colorDb = sensor.db_actual > 80 ? '#e74c3c' : '#2ecc71';
+                        
+                        var infoPopup = `
+                            <div style="text-align: center; font-family: 'Poppins', sans-serif;">
+                                <b style="font-size: 16px;">${sensor.nombre}</b><br>
+                                <span style="font-size: 22px; font-weight: bold; color: ${colorDb};">
+                                    ${sensor.db_actual} dB
+                                </span><br>
+                                <small style="color: #888;">Última lectura: ${sensor.hora}</small>
+                            </div>
+                        `;
+                        
+                        if (marcadores[sensor.nombre]) {
+                            marcadores[sensor.nombre].getPopup().setContent(infoPopup);
+                        } else {
+                            var nuevoPin = L.marker([sensor.lat, sensor.lng]).addTo(mapa);
+                            nuevoPin.bindPopup(infoPopup);
+                            
+                            nuevoPin.on('click', function() {
+                                cargarGrafica(sensor.id, sensor.nombre);
+                            });
+                            marcadores[sensor.nombre] = nuevoPin;
+                        }
+                    });
+                    
+                    if (idSensorActivo !== null) {
+                        cargarGrafica(idSensorActivo, nombreSensorActivo);
+                    }
+                });
+        }
+
+        actualizarMapa();
+        setInterval(actualizarMapa, 5000); 
+    </script>
+
+</body>
+</html>
