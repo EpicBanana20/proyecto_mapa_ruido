@@ -13,19 +13,18 @@
         body { 
             font-family: 'Poppins', sans-serif; 
             margin: 0; 
-            background-color: #f0f2f5; /* Fondo gris muy claro */
+            background-color: #f0f2f5; 
             color: #333;
         }
 
-        /* La barra superior negra con línea verde */
         .navbar {
-            background-color: #111; /* Negro profundo */
+            background-color: #111; 
             color: white;
             padding: 20px 40px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 5px solid #2ecc71; /* Acento verde brillante */
+            border-bottom: 5px solid #2ecc71; 
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
 
@@ -35,17 +34,7 @@
             font-weight: 800;
             letter-spacing: 1px;
         }
-        
-        .badge {
-            background-color: #2ecc71;
-            color: #111;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-weight: 600;
-            font-size: 14px;
-        }
 
-        /* Contenedor principal para centrar el contenido */
         .contenedor-principal {
             max-width: 1400px;
             margin: 40px auto;
@@ -55,16 +44,16 @@
             flex-wrap: wrap;
         }
 
-        /* Estilo de tarjeta blanca para los módulos */
         .tarjeta {
             background: white;
             padding: 25px;
             border-radius: 15px;
             box-shadow: 0 10px 20px rgba(0,0,0,0.05);
-            flex: 1;
-            min-width: 400px;
-            border-top: 4px solid #111; /* Detalle negro arriba */
+            border-top: 4px solid #111; 
         }
+
+        .seccion-70 { flex: 7; min-width: 500px; }
+        .seccion-30 { flex: 3; min-width: 300px; }
 
         .tarjeta h2 {
             margin-top: 0;
@@ -75,22 +64,20 @@
             margin-bottom: 20px;
         }
 
-        /* Ajustes específicos del mapa y gráfica */
-        #mapa_mexico { 
-            height: 550px; 
-            border-radius: 10px; 
-            z-index: 1; /* Evita que se sobreponga a otros elementos */
-        }
-        
-        canvas { 
-            max-height: 450px; 
+        #mapa_mexico { height: 550px; border-radius: 10px; z-index: 1; }
+        canvas { max-height: 450px; }
+
+        .catalogo-scroll {
+            max-height: 350px;
+            overflow-y: auto;
+            padding-right: 10px;
         }
 
-        /* Personalización de los popups del mapa */
-        .leaflet-popup-content-wrapper {
-            border-radius: 8px;
-            box-shadow: 0 3px 14px rgba(0,0,0,0.2);
-        }
+        .texto-intro { font-size: 15px; line-height: 1.6; color: #444; }
+        
+        /* Estilo para los nombres de las especies */
+        .especie-item { margin-bottom: 15px; border-bottom: 1px solid #f9f9f9; padding-bottom: 10px; }
+        .especie-nombre { color: #2ecc71; font-weight: 600; display: block; }
     </style>
 </head>
 <body>
@@ -101,43 +88,117 @@
     
     <main class="contenedor-principal">
         
-        <div class="tarjeta">
+        <div class="tarjeta seccion-70">
             <h2>Ubicación de Sensores</h2>
             <div id="mapa_mexico"></div>
         </div>
         
-        <div class="tarjeta">
+        <div class="tarjeta seccion-30">
             <h2 id="titulo-grafica">Datos del Sensor: Selecciona un punto</h2>
             <canvas id="graficaRuido"></canvas>
+        </div>
+
+        <div class="tarjeta seccion-70 texto-intro">
+            <h2>Mitigación: Barreras Vegetales</h2>
+            <p>Las barreras vegetales ayudan a reducir el ruido mediante absorción sonora, dispersión de ondas acústicas y mejora de confort psicológico en entornos urbanos.</p>
+            <h3 style="color: #111; font-size: 16px; margin-top: 20px;">Diseño de barrera recomendado:</h3>
+            <ul>
+                <li><b>Línea 1:</b> Arbustos densos (1.5–2 m)</li>
+                <li><b>Línea 2:</b> Árboles medianos cada 4–6 m</li>
+                <li><b>Línea 3:</b> Árboles grandes como fondo</li>
+            </ul>
+        </div>
+
+        <div class="tarjeta seccion-30">
+            <h2 id="titulo-catalogo">Especies Recomendadas</h2>
+            <div id="contenedor-especies" class="catalogo-scroll">
+                <p style="color: #888; text-align: center;">Haz clic en un sensor del mapa para ver las especies recomendadas para esa región.</p>
+            </div>
         </div>
 
     </main>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // Inicializamos el mapa centrado en México
+        // --- BASE DE DATOS DE ESPECIES ---
+        const especiesPorRegion = {
+            "Obregon": [
+                { nombre: "Mezquite (Prosopis spp.)", desc: "Copa amplia, resistente a sequía, ideal para avenidas." },
+                { nombre: "Palo Verde (Parkinsonia spp.)", desc: "Crecimiento rápido, útil en segunda línea acústica." },
+                { nombre: "Palo Fierro (Olneya tesota.)", desc: "Especie emblemática, gran durabilidad." },
+                { nombre: "Tepeguaje (Lysiloma spp.)", desc: "Follaje abundante para masa vegetal acústica." }
+            ],
+            "Chihuahua": [
+                { nombre: "Encino (Quercus durifolia.)", desc: "Follaje denso, excelente absorción acústica." },
+                { nombre: "Mezquito (Prosopis glandulosa.)", desc: "Resistente a sequías extremas, copa amplia." },
+                { nombre: "Palo Verde (Parkinsonia spp.)", desc: "Crecimiento rápido, bajo consumo hídrico." },
+                { nombre: "Cenizo (Leucophyllum frutescens.)", desc: "Arbusto denso ideal como primera barrera." }
+            ],
+            "Jalisco": [
+                { nombre: "Fresno (Fraxinus uhdei)", desc: "Copa amplia y densa, excelente para bloquear ruido en avenidas principales." },
+                { nombre: "Arrayán (Psidium sartorianum)", desc: "Follaje perenne muy denso, ideal para la primera línea de barrera (arbusto alto)." },
+                { nombre: "Primavera (Tabebuia donnell-smithii)", desc: "Crecimiento rápido y adaptable, ideal para masas vegetales mixtas." },
+                { nombre: "Parota (Enterolobium cyclocarpum)", desc: "Árbol monumental de copa ancha, útil como fondo (tercera línea) en parques o camellones anchos." }
+            ],
+            "Durango": [
+                { nombre: "Pino Piñonero (Pinus cembroides)", desc: "Follaje perenne (coníferas) que mantiene la barrera acústica activa incluso en invierno." },
+                { nombre: "Encino Blanco (Quercus rugosa)", desc: "Hojas gruesas y copa densa con alta capacidad de absorción sonora." },
+                { nombre: "Huizache (Vachellia farnesiana)", desc: "Arbusto muy cerrado y resistente, perfecto para la primera línea de defensa acústica." },
+                { nombre: "Álamo (Populus fremontii)", desc: "Crecimiento rápido y follaje denso que dispersa el sonido eficientemente." }
+            ]
+        };
+
         var mapa = L.map('mapa_mexico').setView([23.6345, -102.5528], 5);
-        
-        // Usamos un mapa en tonos claros para que resalten los pines y contraste con el diseño
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { 
-            attribution: '© OpenStreetMap, © CartoDB' 
-        }).addTo(mapa);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: '© CartoDB' }).addTo(mapa);
 
         var marcadores = {};
         var miGrafica = null; 
         var idSensorActivo = null; 
         var nombreSensorActivo = null;
 
+        function actualizarCatalogo(nombreSensor) {
+            const contenedor = document.getElementById('contenedor-especies');
+            const titulo = document.getElementById('titulo-catalogo');
+            
+            // Buscamos si el nombre del sensor coincide con alguna región (ej. "Sensor Obregon")
+            let regionEncontrada = null;
+            for (let region in especiesPorRegion) {
+                if (nombreSensor.toLowerCase().includes(region.toLowerCase())) {
+                    regionEncontrada = region;
+                    break;
+                }
+            }
+
+            if (regionEncontrada) {
+                titulo.innerHTML = `Especies para: <b style="color: #2ecc71;">${regionEncontrada}</b>`;
+                let html = "";
+                especiesPorRegion[regionEncontrada].forEach(esp => {
+                    html += `
+                        <div class="especie-item">
+                            <span class="especie-nombre">${esp.nombre}</span>
+                            <small>${esp.desc}</small>
+                        </div>
+                    `;
+                });
+                contenedor.innerHTML = html;
+            } else {
+                titulo.innerHTML = `Especies Recomendadas`;
+                contenedor.innerHTML = `<p style="color: #888;">Información botánica en proceso para <b>${nombreSensor}</b>.</p>`;
+            }
+        }
+
         function cargarGrafica(sensor_id, sensor_nombre) {
             idSensorActivo = sensor_id;
             nombreSensorActivo = sensor_nombre;
             document.getElementById('titulo-grafica').innerHTML = `Historial: <b>${sensor_nombre}</b>`;
             
+            // Llamamos a la actualización del catálogo
+            actualizarCatalogo(sensor_nombre);
+
             fetch('/api/sensores/' + sensor_id + '/historial/')
-                .then(respuesta => respuesta.json())
+                .then(res => res.json())
                 .then(datos => {
                     var ctx = document.getElementById('graficaRuido').getContext('2d');
-                    
                     if (miGrafica) { 
                         miGrafica.data.labels = datos.etiquetas;
                         miGrafica.data.datasets[0].data = datos.niveles;
@@ -150,30 +211,13 @@
                                 datasets: [{
                                     label: 'Nivel de Ruido (dB)',
                                     data: datos.niveles,
-                                    borderColor: '#2ecc71', // Verde
-                                    backgroundColor: 'rgba(46, 204, 113, 0.2)', // Verde transparente para el relleno
-                                    pointBackgroundColor: '#111', // Puntos negros
-                                    borderWidth: 3, 
-                                    fill: true, 
-                                    tension: 0.4 // Curvas más suaves
+                                    borderColor: '#2ecc71',
+                                    backgroundColor: 'rgba(46, 204, 113, 0.2)',
+                                    fill: true,
+                                    tension: 0.4
                                 }]
                             },
-                            options: { 
-                                responsive: true, 
-                                maintainAspectRatio: false,
-                                plugins: {
-                                    legend: { position: 'bottom' }
-                                },
-                                scales: { 
-                                    y: { 
-                                        beginAtZero: false, 
-                                        suggestedMin: 30, 
-                                        suggestedMax: 100,
-                                        grid: { color: '#eee' }
-                                    },
-                                    x: { grid: { display: false } }
-                                } 
-                            }
+                            options: { responsive: true, maintainAspectRatio: false }
                         });
                     }
                 });
@@ -181,44 +225,26 @@
 
         function actualizarMapa() {
             fetch('/api/sensores/')
-                .then(respuesta => respuesta.json())
+                .then(res => res.json())
                 .then(datos => {
                     datos.forEach(sensor => {
-                        // Cambiamos el color del texto a rojo si el ruido pasa de 80dB
                         var colorDb = sensor.db_actual > 80 ? '#e74c3c' : '#2ecc71';
-                        
-                        var infoPopup = `
-                            <div style="text-align: center; font-family: 'Poppins', sans-serif;">
-                                <b style="font-size: 16px;">${sensor.nombre}</b><br>
-                                <span style="font-size: 22px; font-weight: bold; color: ${colorDb};">
-                                    ${sensor.db_actual} dB
-                                </span><br>
-                                <small style="color: #888;">Última lectura: ${sensor.hora}</small>
-                            </div>
-                        `;
+                        var infoPopup = `<div style="text-align: center;"><b>${sensor.nombre}</b><br><span style="color: ${colorDb}; font-weight: bold;">${sensor.db_actual} dB</span></div>`;
                         
                         if (marcadores[sensor.nombre]) {
                             marcadores[sensor.nombre].getPopup().setContent(infoPopup);
                         } else {
                             var nuevoPin = L.marker([sensor.lat, sensor.lng]).addTo(mapa);
                             nuevoPin.bindPopup(infoPopup);
-                            
-                            nuevoPin.on('click', function() {
-                                cargarGrafica(sensor.id, sensor.nombre);
-                            });
+                            nuevoPin.on('click', () => cargarGrafica(sensor.id, sensor.nombre));
                             marcadores[sensor.nombre] = nuevoPin;
                         }
                     });
-                    
-                    if (idSensorActivo !== null) {
-                        cargarGrafica(idSensorActivo, nombreSensorActivo);
-                    }
                 });
         }
 
         actualizarMapa();
         setInterval(actualizarMapa, 5000); 
     </script>
-
 </body>
 </html>

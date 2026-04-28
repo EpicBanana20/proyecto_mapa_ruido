@@ -30,7 +30,7 @@ def iniciar_simulacion():
             print(f"[{hora_actual}] Nuevo registro en {sensor.nombre}: {ruido} dB")
             
         # El script "se duerme" 60 segundos antes de volver a empezar
-        time.sleep(60) 
+        time.sleep(10) 
 
 if __name__ == '__main__':
     iniciar_simulacion()
